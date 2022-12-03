@@ -1,0 +1,15 @@
+apiVersion: v1
+items:
+- apiVersion: autoscaling/v1
+  kind: HorizontalPodAutoscaler
+  metadata:
+    name: {{ include "KEBAB_NAME.fullname" . }}
+  spec:
+    maxReplicas: {{ .Values.scale.maxReplicas }}
+    minReplicas: {{ .Values.scale.minReplicas }}
+    scaleTargetRef:
+      apiVersion: extensions/v1beta1
+      kind: Deployment
+      name: {{ include "KEBAB_NAME.fullname" . }}
+    targetCPUUtilizationPercentage:  {{ .Values.scale.cpuUtilizationPercentage }}
+kind: List

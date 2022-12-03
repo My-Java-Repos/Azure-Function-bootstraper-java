@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "KEBAB_NAME.fullname" . }}
+  labels:
+    {{- include "KEBAB_NAME.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "KEBAB_NAME.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "KEBAB_NAME.selectorLabels" . | nindent 8 }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: {{ include "KEBAB_NAME.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        - name: secrets
+          secret:
+            secretName: azure-functions-secrets
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: secrets
+              mountPath: "/azure-functions-host/Secrets"
+              readOnly: true
+          env:
+            - name: AzureWebJobsStorage
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "KEBAB_NAME.fullname" . }}
+                  key: AzureWebJobsStorage
+            - name: AzureWebJobsSecretStorageType
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "KEBAB_NAME.fullname" . }}
+                  key: AzureWebJobsSecretStorageType
+            - name: FUNCTIONS_WORKER_RUNTIME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "KEBAB_NAME.fullname" . }}
+                  key: FUNCTIONS_WORKER_RUNTIME
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.containerPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
